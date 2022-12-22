@@ -18,18 +18,143 @@ class HierarchableTest < Minitest::Test
     refute_nil ::Hierarchable::VERSION
   end
 
-  def test_ancestors_should_return_array_of_ancestor_records
-    root = HierarchableTestRoot.create!
+  def test_can_get_hierarchy_ancestor_models
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new(hierarchable_test_root: root)
+    kid = HierarchableTestKid.new(hierarchable_test_parent: parent)
 
-    assert_empty root.all_ancestors
+    # This method depends on the ancestor_path being set, which happens before
+    # the object is saved. So, before saving it, this returns nothing
+    assert_empty root.hierarchy_ancestor_models
+    assert_empty parent.hierarchy_ancestor_models
+    assert_empty kid.hierarchy_ancestor_models
 
-    parent = HierarchableTestParent.create!(hierarchable_test_root: root)
+    root.save!
+    parent.save!
+    kid.save!
 
-    assert_equal [root], parent.all_ancestors
+    assert_empty root.hierarchy_ancestor_models
+    assert_equal [HierarchableTestRoot],
+                 parent.hierarchy_ancestor_models
+    assert_equal [HierarchableTestRoot, HierarchableTestParent],
+                 kid.hierarchy_ancestor_models
+  end
 
-    kid = HierarchableTestKid.create!(hierarchable_test_parent: parent)
+  def test_can_get_hierarchy_ancestor_models_including_self
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new(hierarchable_test_root: root)
+    kid = HierarchableTestKid.new(hierarchable_test_parent: parent)
 
-    assert_equal [root, parent], kid.all_ancestors
+    # This method depends on the ancestor_path being set, which happens before
+    # the object is saved. So, before saving it, this returns just this
+    # object's class
+    assert_equal [HierarchableTestRoot],
+                 root.hierarchy_ancestor_models(include_self: true)
+    assert_equal [HierarchableTestParent],
+                 parent.hierarchy_ancestor_models(include_self: true)
+    assert_equal [HierarchableTestKid],
+                 kid.hierarchy_ancestor_models(include_self: true)
+
+    root.save!
+    parent.save!
+    kid.save!
+
+    assert_equal [HierarchableTestRoot],
+                 root.hierarchy_ancestor_models(include_self: true)
+    assert_equal [HierarchableTestRoot, HierarchableTestParent],
+                 parent.hierarchy_ancestor_models(include_self: true)
+    assert_equal [HierarchableTestRoot, HierarchableTestParent,
+                  HierarchableTestKid],
+                 kid.hierarchy_ancestor_models(include_self: true)
+  end
+
+  def test_can_get_hierarchy_ancestors
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new(hierarchable_test_root: root)
+    kid = HierarchableTestKid.new(hierarchable_test_parent: parent)
+
+    # This method depends on the ancestor_path being set, which happens before
+    # the object is saved. So, before saving it, this returns nothing
+    assert_empty root.hierarchy_ancestors
+    assert_empty parent.hierarchy_ancestors
+    assert_empty kid.hierarchy_ancestors
+
+    root.save!
+    parent.save!
+    kid.save!
+
+    assert_empty root.hierarchy_ancestors
+    assert_equal [root], parent.hierarchy_ancestors
+    assert_equal [root, parent], kid.hierarchy_ancestors
+  end
+
+  def test_can_get_hierarchy_ancestors_including_self
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new(hierarchable_test_root: root)
+    kid = HierarchableTestKid.new(hierarchable_test_parent: parent)
+
+    # This method depends on the ancestor_path being set, which happens before
+    # the object is saved. So, before saving it, this returns nothing
+    assert_equal [root], root.hierarchy_ancestors(include_self: true)
+    assert_equal [parent], parent.hierarchy_ancestors(include_self: true)
+    assert_equal [kid], kid.hierarchy_ancestors(include_self: true)
+
+    root.save!
+    parent.save!
+    kid.save!
+
+    assert_equal [root], root.hierarchy_ancestors(include_self: true)
+    assert_equal [root, parent], parent.hierarchy_ancestors(include_self: true)
+    assert_equal [root, parent, kid],
+                 kid.hierarchy_ancestors(include_self: true)
+  end
+
+  def test_can_get_hierarchy_descendant_models
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new
+    kid = HierarchableTestKid.new
+
+    assert_equal [HierarchableTestParent, HierarchableTestKid],
+                 root.hierarchy_descendant_models
+    assert_equal [HierarchableTestKid],
+                 parent.hierarchy_descendant_models
+    assert_empty kid.hierarchy_descendant_models
+
+    root.save!
+    parent.save!
+    kid.save!
+
+    assert_equal [HierarchableTestParent, HierarchableTestKid],
+                 root.hierarchy_descendant_models
+    assert_equal [HierarchableTestKid],
+                 parent.hierarchy_descendant_models
+    assert_empty kid.hierarchy_descendant_models
+  end
+
+  def test_can_get_hierarchy_descendant_models_including_self
+    root = HierarchableTestRoot.new
+    parent = HierarchableTestParent.new
+    kid = HierarchableTestKid.new
+
+    assert_equal [HierarchableTestRoot, HierarchableTestParent,
+                  HierarchableTestKid],
+                 root.hierarchy_descendant_models(include_self: true)
+    assert_equal [HierarchableTestParent, HierarchableTestKid],
+                 parent.hierarchy_descendant_models(include_self: true)
+    assert_equal [HierarchableTestKid],
+                 kid.hierarchy_descendant_models(include_self: true)
+
+    root.save!
+    parent.save!
+    kid.save!
+
+    assert_equal [HierarchableTestRoot, HierarchableTestParent,
+                  HierarchableTestKid],
+                 root.hierarchy_descendant_models(include_self: true)
+    assert_equal [HierarchableTestParent, HierarchableTestKid],
+                 parent.hierarchy_descendant_models(include_self: true)
+    assert_equal [HierarchableTestKid],
+                 kid.hierarchy_descendant_models(include_self: true)
   end
 
   def test_to_hierarchy_ancestors_path_format_for_new_and_existing_records
