@@ -197,6 +197,7 @@ module Hierarchable
     # set `models` to `:this`. If you want to specify a specific list of models
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
     # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable Metrics/PerceivedComplexity
     def hierarchy_ancestors(include_self: false, models: :all)
       return [] unless respond_to?(:hierarchy_ancestors_path)
       return include_self ? [self] : [] if hierarchy_ancestors_path.blank?
@@ -209,7 +210,7 @@ module Hierarchable
         )
 
         next if ancestor_class != self.class.name && models != :all
-        next if models.is_a?(Array) && !models.include?(ancestor_class)
+        next if models.is_a?(Array) && models.exclude?(ancestor_class)
 
         ancestor_class.safe_constantize.find(ancestor_id)
       end
@@ -219,6 +220,7 @@ module Hierarchable
       ancestors
     end
     # rubocop:enable Metrics/CyclomaticComplexity
+    # rubocop:enable Metrics/PerceivedComplexity
 
     # Get all of the models of the children that this object could have
     #
@@ -277,9 +279,10 @@ module Hierarchable
     def hierarchy_siblings(include_self: false, models: :all)
       return {} unless respond_to?(:hierarchy_parent_id)
 
-      models = if models.is_a?(Array)
-                models
-               elsif models == :all
+      models = case models
+               when Array
+                 models
+               when :all
                  hierarchy_sibling_models(include_self: true)
                else
                  [self.class]
@@ -357,13 +360,15 @@ module Hierarchable
     # Comments. If you only need this one particular model's data, then
     # set `models` to `:this`. If you want to specify a specific list of models
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def hierarchy_descendants(include_self: false, models: :all)
       return {} unless respond_to?(:hierarchy_ancestors_path)
 
-      models = if models.is_a?(Array)
-                  models
-                elsif models == :all
+      models = case models
+               when Array
+                 models
+               when :all
                  hierarchy_descendant_models(include_self: true)
                else
                  [self.class]
@@ -394,6 +399,7 @@ module Hierarchable
       end
       result
     end
+    # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity
 
     # Return the attribute name that links this object to its parent.
