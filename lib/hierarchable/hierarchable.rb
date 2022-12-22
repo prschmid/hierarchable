@@ -69,12 +69,17 @@ module Hierarchable
   HIERARCHABLE_DEFAULT_RECORD_SEPARATOR = '|'
 
   class_methods do
+    # rubocop:disable Metrics/MethodLength
     def hierarchable(opts = {})
       class_attribute :hierarchable_config
 
       # Save the configuration
       self.hierarchable_config = {
         parent_source: opts.fetch(:parent_source, nil),
+        additional_descendant_associations: opts.fetch(
+          :descendant_associations, []
+        ),
+        descendant_associations: opts.fetch(:descendant_associations, nil),
         path_separator: opts.fetch(
           :path_separator, HIERARCHABLE_DEFAULT_PATH_SEPARATOR
         ),
@@ -105,7 +110,7 @@ module Hierarchable
 
       before_create :set_hierarchy_ancestors_path
 
-      scope :descendants_of,
+      scope :hierarchy_descendants_of,
             lambda { |object|
               where(
                 'hierarchy_ancestors_path LIKE :hierarchy_ancestors_path',
@@ -113,10 +118,11 @@ module Hierarchable
               )
             }
 
-      scope :siblings_of,
+      scope :hierarchy_siblings_of,
             lambda { |object|
               where(
-                'hierarchy_parent_type=:parent_type AND hierarchy_parent_id=:parent_id',
+                'hierarchy_parent_type=:parent_type AND ' \
+                'hierarchy_parent_id=:parent_id',
                 parent_type: object.hierarchy_parent.class.name,
                 parent_id: object.hierarchy_parent.id
               )
@@ -125,9 +131,14 @@ module Hierarchable
       include InstanceMethods
     end
   end
+  # rubocop:enable Metrics/MethodLength
 
   # Instance methods to include
   module InstanceMethods
+    def hierarchy_root?
+      hierarchy_root.nil?
+    end
+
     def hierarchy_parent(raw: false)
       return hierarchy_parent_relationship if raw
 
@@ -152,6 +163,239 @@ module Hierarchable
       end
     end
 
+    # Get all of the ancestors models
+    #
+    # The `include_self` parameter can be set to decide where to start the
+    # the ancestry search. If set to `false` (default), then it will return
+    # all models found starting with the parent of this object. If set to
+    # `true`, then it will start with the currect object.
+    def hierarchy_ancestor_models(include_self: false)
+      return [] unless respond_to?(:hierarchy_ancestors_path)
+      return include_self ? [self.class] : [] if hierarchy_ancestors_path.blank?
+
+      models = hierarchy_ancestors_path.split(
+        hierarchable_config[:path_separator]
+      ).map do |ancestor|
+        ancestor_class, = \
+          ancestor.split(hierarchable_config[:record_separator])
+        ancestor_class.safe_constantize
+      end.uniq
+
+      models << self.class if include_self
+      models.uniq
+    end
+
+    # Get ancestors of the same type for an object.
+    #
+    # Using the `hierarchy_ancestors_path`, this will iteratively get all
+    # ancestor objects and return them as a list.
+    #
+    # If the `models` parameter is `:all` (default), then the result
+    # will contain objects of different types. E.g. if we have a Project,
+    # Task, and a Comment, the siblings of a Task may include both Tasks and
+    # Comments. If you only need this one particular model's data, then
+    # set `models` to `:this`. If you want to specify a specific list of models
+    # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    # rubocop:disable Metrics/CyclomaticComplexity
+    def hierarchy_ancestors(include_self: false, models: :all)
+      return [] unless respond_to?(:hierarchy_ancestors_path)
+      return include_self ? [self] : [] if hierarchy_ancestors_path.blank?
+
+      ancestors = hierarchy_ancestors_path.split(
+        hierarchable_config[:path_separator]
+      ).map do |ancestor|
+        ancestor_class, ancestor_id = ancestor.split(
+          hierarchable_config[:record_separator]
+        )
+
+        next if ancestor_class != self.class.name && models != :all
+        next if models.is_a?(Array) && !models.include?(ancestor_class)
+
+        ancestor_class.safe_constantize.find(ancestor_id)
+      end
+
+      ancestors.compact
+      ancestors << self if include_self
+      ancestors
+    end
+    # rubocop:enable Metrics/CyclomaticComplexity
+
+    # Get all of the models of the children that this object could have
+    #
+    # This is based on the models identified in the
+    # `hierarchy_descendant_associations` association
+    #
+    # The `include_self` parameter can be set to decide where to start the
+    # the children search. If set to `false` (default), then it will return
+    # all models found starting with the for all children. If set to
+    # `true`, then it will include the current object's class. Note, this
+    # parameter is added here for consistency, but in the case of children
+    # models, it is unlikely that `include_self` would be set to `true`
+    def hierarchy_children_models(include_self: false)
+      return [] unless respond_to?(:hierarchy_descendant_associations)
+      if hierarchy_descendant_associations.blank?
+        return include_self ? [self.class] : []
+      end
+
+      models = hierarchy_descendant_associations.map do |association|
+        self.association(association)
+            .reflection
+            .class_name
+            .safe_constantize
+      end
+
+      models << self.class if include_self
+      models.uniq
+    end
+
+    # Get all of the sibling models
+    #
+    # The `include_self` parameter can be set to decide what to include in the
+    # sibling models search. If set to `false` (default), then it will return
+    # all models other models that are siblings of the current object. If set to
+    # `true`, then it will also include the current object's class.
+    def hierarchy_sibling_models(include_self: false)
+      return [] unless respond_to?(:hierarchy_parent)
+      return include_self ? [self.class] : [] if hierarchy_parent.blank?
+
+      models = hierarchy_parent.hierarchy_children_models(include_self: false)
+      models << self.class if include_self
+      models.uniq
+    end
+
+    # Get siblings of the same type for an object.
+    #
+    # For a given object type, return all siblings as a hash such that the key
+    # is the model and the value is the list of siblings of that model.
+    #
+    # If the `models` parameter is `:all` (default), then the result
+    # will contain objects of different types. E.g. if we have a Project,
+    # Task, and a Comment, the siblings of a Task may include both Tasks and
+    # Comments. If you only need this one particular model's data, then
+    # set `models` to `:this`. If you want to specify a specific list of models
+    # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    def hierarchy_siblings(include_self: false, models: :all)
+      return {} unless respond_to?(:hierarchy_parent_id)
+
+      models = if models.is_a?(Array)
+                models
+               elsif models == :all
+                 hierarchy_sibling_models(include_self: true)
+               else
+                 [self.class]
+               end
+
+      result = {}
+      models.each do |model|
+        query = model.where(
+          hierarchy_parent_type: public_send(:hierarchy_parent_type),
+          hierarchy_parent_id: public_send(:hierarchy_parent_id)
+        )
+        query = query.where.not(id:) if model == self.class && !include_self
+        result[model] = query
+      end
+      result
+    end
+
+    # Get all of the descendant models for objects that are descendants of
+    # the current one.
+    #
+    # This will make use of the `hierarchy_descendant_associations` to find
+    # all models.
+    #
+    # Unlike `hierarchy_children_models` that only looks at the immediate
+    # children of an object, this  method will look at all descenants of the
+    # current object and find the models. In other words, this will follow
+    # all relationships of all children, and those children's children to
+    # get all models that could potentially be descendants of the current
+    # model.
+    #
+    # The `include_self` parameter can be set to decide where to start the
+    # the descentant search. If set to `false` (default), then it will return
+    # all models found starting with the children of this object. If set to
+    # `true`, then it will start with the currect object.
+    # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable Metrics/PerceivedComplexity
+    def hierarchy_descendant_models(include_self: false)
+      return [] unless respond_to?(:hierarchy_descendant_associations)
+
+      if hierarchy_descendant_associations.blank?
+        return include_self ? [self.class] : []
+      end
+
+      models = []
+      models_to_analyze = [self.class]
+      until models_to_analyze.empty?
+
+        klass = models_to_analyze.pop
+        next if models.include?(klass)
+
+        obj = klass.new
+        next unless obj.respond_to?(:hierarchy_descendant_associations)
+
+        models_to_analyze += obj.hierarchy_children_models(include_self: false)
+
+        next if klass == self.class && !include_self
+
+        models << klass
+      end
+      models.uniq
+    end
+    # rubocop:enable Metrics/CyclomaticComplexity
+    # rubocop:enable Metrics/PerceivedComplexity
+
+    # Get descendants for an object.
+    #
+    # The `include_self` parameter can be set to decide where to start the
+    # the descentant search. If set to `false` (default), then it will return
+    # all models found starting with the children of this object. If set to
+    # `true`, then it will start with the currect object.
+    #
+    # If the `models` parameter is `:all` (default), then the result
+    # will contain objects of different types. E.g. if we have a Project,
+    # Task, and a Comment, the siblings of a Task may include both Tasks and
+    # Comments. If you only need this one particular model's data, then
+    # set `models` to `:this`. If you want to specify a specific list of models
+    # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    # rubocop:disable Metrics/PerceivedComplexity
+    def hierarchy_descendants(include_self: false, models: :all)
+      return {} unless respond_to?(:hierarchy_ancestors_path)
+
+      models = if models.is_a?(Array)
+                  models
+                elsif models == :all
+                 hierarchy_descendant_models(include_self: true)
+               else
+                 [self.class]
+               end
+
+      result = {}
+      models.each do |model|
+        query = if hierarchy_root?
+                  model.where(
+                    hierarchy_root_type: self.class.name,
+                    hierarchy_root_id: id
+                  )
+                else
+                  path = public_send(:hierarchy_ancestors_path)
+                  model.where(
+                    'hierarchy_ancestors_path LIKE ?',
+                    "#{model.sanitize_sql_like(path)}_%"
+                  )
+                end
+        if model == self.class
+          query = if include_self
+                    query.or(model.where(id:))
+                  else
+                    query.where.not(id:)
+                  end
+        end
+        result[model] = query
+      end
+      result
+    end
+    # rubocop:enable Metrics/PerceivedComplexity
+
     # Return the attribute name that links this object to its parent.
     #
     # This should return the name of the attribute/relation/etc either as a
@@ -166,6 +410,49 @@ module Hierarchable
       return nil unless source
 
       source.respond_to?(:call) ? source.call(self) : source
+    end
+
+    # Return all of the `has_many` association names this class class has as a
+    # list of symbols.
+    #
+    # The assumption is that all of the associations we care about for
+    # getting descendants can easily be obtained directly from inspecting
+    # the class. If there are some associations that need to be manually
+    # added, one simply specify them when setting up the model.
+    #
+    # The most common case is if we want to specify additional associations.
+    # This will take all of the associations that can be auto-detected and
+    # also add in the one provided.
+    #
+    #   class A
+    #     include Hierarched
+    #     hierarched parent_source: :parent,
+    #                additional_descendant_associations: [:some_association]
+    #   end
+    #
+    # There may also be a case when we want exact control over what associations
+    # that should be used. In that case, we can specify it like this:
+    #
+    #   class A
+    #     include Hierarched
+    #     hierarched parent_source: :parent,
+    #                descendant_associations: [:some_association]
+    #   end
+    def hierarchy_descendant_associations
+      if hierarchable_config[:descendant_associations].present?
+        return hierarchable_config[:descendant_associations]
+      end
+
+      associations = \
+        self.class
+            .reflect_on_all_associations(:has_many)
+            .reject do |a|
+              a.name.to_s.singularize.camelcase.safe_constantize.nil?
+            end
+            .reject(&:through_reflection?)
+            .map(&:name)
+      associations += hierarchable_config[:additional_descendant_associations]
+      associations
     end
 
     # Return the string representation of the current object in the format when
@@ -199,7 +486,6 @@ module Hierarchable
     end
 
     # Return hierarchy path for given list of objects
-
     def hierarchy_path_for(objects)
       return '' if objects.blank?
 
@@ -239,89 +525,6 @@ module Hierarchable
         path << ancestor_class.find(ancestor_id)
       end
       path
-    end
-
-    # Get ancestors of the same type for an object.
-    #
-    # For a given object type, return all ancestors that have the same type.
-    # Note, since ancestors may be of different types, this may skip parts
-    # of the hierarchy if the particular ancestor happens to be of a different
-    # type.
-    def ancestors
-      return [] if !respond_to?(:hierarchy_ancestors_path) ||
-                   hierarchy_ancestors_path.blank?
-
-      a = hierarchy_ancestors_path.split(
-        hierarchable_config[:path_separator]
-      ).map do |ancestor|
-        ancestor_class, ancestor_id = ancestor.split(
-          hierarchable_config[:record_separator]
-        )
-
-        if ancestor_class == self.class.name
-          ancestor_class.safe_constantize.find(ancestor_id)
-        end
-      end
-      a.compact
-    end
-
-    # Return the list of all ancestor objects for the current object
-    #
-    # Using the `hierarchy_ancestors_path`, this will iteratively get all
-    # ancestor objects and return them as a list.
-    #
-    # As there may be ancestors of different types, this is not a single query
-    # and may return things of many different types. E.g. if we have a Project,
-    # Task, and a Comment, the ancestors of a coment may be the Task and the
-    # Project.
-    def all_ancestors
-      return [] if !respond_to?(:hierarchy_ancestors_path) ||
-                   hierarchy_ancestors_path.blank?
-
-      hierarchy_ancestors_path.split(
-        hierarchable_config[:path_separator]
-      ).map do |ancestor|
-        ancestor_class, ancestor_id = ancestor.split(
-          hierarchable_config[:record_separator]
-        )
-        ancestor_class.safe_constantize.find(ancestor_id)
-      end
-    end
-
-    # Get siblings of the same type for an object.
-    #
-    # For a given object type, return all siblings. Note, this DOES NOT return
-    # siblings of different types and those need to be queried separetly.
-    # equivalent to c.hierarchy_parent.children
-    #
-    # Params:
-    # +include_self+:: Whether or not to include self in the list.
-    #                  Default is true
-    def siblings(include_self: true)
-      # The method should always return relation, not an Array sometimes and
-      # Relation the other
-      return self.class.none unless respond_to?(:hierarchy_parent_id)
-
-      query = self.class.where(
-        hierarchy_parent_type: public_send(:hierarchy_parent_type),
-        hierarchy_parent_id: public_send(:hierarchy_parent_id)
-      )
-      query = query.where.not(id:) unless include_self
-      query
-    end
-
-    # Get all siblings of this object regardless of object type.
-    #
-    # This has yet to be implemented and would likely require a separate join
-    # table that has all of the data across all tables linked to the particular
-    # parent. I.e. a simple table that has parent, child in it that we could
-    # use to query.
-    #
-    # Params:
-    # +include_self+:: Whether or not to include self in the list.
-    #                  Default is true
-    def all_siblings
-      raise NotImplementedError
     end
 
     protected

@@ -2,7 +2,9 @@
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/prschmid/hierarchable/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/prschmid/hierarchable/tree/main)
 
-Cross model hierarchical (parent, child, sibling) relationship between ActiveRecord models.
+A simple way to define cross model hierarchical (parent, child, sibling) relationships between ActiveRecord models.
+
+The aim of this library is to efficiently create and store the ancestors of an object so that it is easy to generate things like breadcrumbs that require information about an object's ancestors that may span multiple models (e.g. `Project` and `Task`). It is designed in such a way that each object contains the ancestry information and that no joins need to be made to a separate table to get this ancestry information.
 
 ## Installation
 
@@ -43,9 +45,13 @@ t.references :hierarchy_parent,
 t.string :hierarchy_ancestors_path, index: true
 ```
 
-The `hierarchy_ancestors_path` column does contain all of the information that is in the `hierarchy_root` and `hierarchy_parent` columns, but those two columns are created for more efficient querying as the direct parent and the root are the most frequent parts of the hierarchy that are needed.
+If you aren't using UUIDs, then simply omit the `type: :uuid` from the two `references` definitions.
+
+Note, the `hierarchy_ancestors_path` column does contain all of the information that is in the `hierarchy_root` and `hierarchy_parent` columns, but those two columns are created for more efficient querying as the direct parent and the root are the most frequent parts of the hierarchy that are needed.
 
 ## Usage
+
+### Getting Started
 
 We will describe the usage using a simplistic Project and Task analogy where we assume that a Project can have many tasks. Given a class `Project` we can set it up as follows
 
@@ -53,18 +59,21 @@ We will describe the usage using a simplistic Project and Task analogy where we 
 class Project
   include Hierarchable
   hierarchable
+  # If desired, could explicitly setting the parent source to `nil`, but this is
+  # the same "under the hood"
+  # hierarchable parent_source: nil
 end
 ```
 
-This will set up the `Project` as the root of the hierarchy. This means that when we query for its root or parent, it will return "self". I.e.
+This will set up the `Project` as the root of the hierarchy. When a `Project` model is saved, it will not have any values for the hierarchy_root, hierarchy_parent, or hierarchy_ancestors_path. This is because for the root item as we are not guaranteed to have an ID for the object until after it is saved, and so there is no way for us to set these values in a consistent way across different use cases. This doesn't affect any of the usage of the library, it's just something to keep in mind.
 
 ```ruby
 project = Project.create!
 
-# These will be true (assuming the the ID of the project is the UUID xxxxxxxx-...)
-project.hierarchy_root == project
-project.hierarchy_parent == project
-project.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+# These will be true. 
+project.hierarchy_root == nil
+project.hierarchy_parent == nil
+project.hierarchy_ancestors_path == ''
 ```
 
 Now that we have a project configured, we can add tasks that have projects as a parent.
@@ -84,13 +93,11 @@ This will configure the hierarchy to look at the project association and use tha
 project = Project.create!
 task = Task.create!(project: project)
 
-# These will be true
+# These will be true (assuming that the xxxxxx and yyyyyy are the IDs for the
+# project and task respectively)
 task.hierarchy_root == project
 task.hierarchy_parent == project
-project.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-task.hierarchy_root == project
-task.hierarchy_parent == project
-task.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Task|yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy'
+task.hierarchy_ancestors_path == 'Project|xxxxxx/Task|yyyyyy'
 ```
 
 Now, let's assume that our tasks can also have other Tasks as subtasks. Once we do that, we need to ensure that the parent of a subtask is the task and not the project. For this we, can do something like the following:
@@ -122,16 +129,83 @@ task = Task.create!(project: project)
 sub_task = Task.create!(project: project, parent_task: task)
 
 # These will be true
-task.hierarchy_root == project
-task.hierarchy_parent == project
-project.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-task.hierarchy_root == project
-task.hierarchy_parent == project
-task.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Task|yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy'
 sub_task.hierarchy_root == project
 sub_task.hierarchy_parent == task
-sub_task.hierarchy_ancestors_path == 'Project|xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Task|yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy/Task|zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz'
+sub_task.hierarchy_ancestors_path == 'Project|xxxxxx/Task|yyyyyy/Task|zzzzzz'
 ```
+
+### Working with siblings and descendants of an object
+
+Let's continue with our `Project` and `Task` example from above and assume we have the following models:
+
+```ruby
+class Project
+  include Hierarchable
+  hierarchable
+end
+
+class Task
+  include Hierarchable
+  hierarchable parent_source: :project
+
+  belongs_to :project
+end
+
+class Milestone
+  include Hierarchable
+  hierarchable parent_source: :project
+
+  belongs_to :project
+end
+```
+
+Based on this setup, we can get all siblings and descendants of either a `Project` or `Task` as follows:
+
+```ruby
+project = Project.create!
+task = Task.create!(project: project)
+milestone = Milestone.create!(project: project)
+
+# Query for all Project objects that are siblings of this project.
+# Since the project is the root of the hierarchy, this will return no siblings
+project.hierarchy_siblings
+
+# Query for all objects (regardless of type) that are descendats of this project
+# In our example, this will return all Tasks and Milestones
+project.hierarchy_descendants
+
+# Query for all Project objects that are descendats of this project
+# In our example, this will return no results
+project.hierarchy_descendants(models: :this)
+
+# Query for all Task objects that are siblings of this task.
+# This will return all tasks and milestones that are part of the project
+task.hierarchy_siblings
+```
+
+In order to figure out the potential descendants of an object we need to inspect the object and query all relations to to see if any of those have this object as an ancestor. In most cases these relations can be inferred correctly by getting all of the `has_many` relationships that a model has defined. However there are times when we need to manually add a child relation to be inspected. This can be done in one of two ways.
+
+The most common case is if we want to specify additional associations. This will take all of the associations that can be auto-detected and also add in the one provided.
+
+```ruby
+class SomeObject
+  include Hierarched
+  hierarched parent_source: :parent,
+              additional_descendant_associations: [:some_association]
+end
+```
+
+There may also be a case when we want exact control over what associations that should be used. In that case, we can specify it like this:
+
+```ruby
+class SomeObject
+  include Hierarched
+  hierarched parent_source: :parent,
+              descendant_associations: [:some_association]
+end
+```
+
+Note: For the use case that this library was designed (e.g. creating breadcrumbs) this was a limitation that was perfectly acceptible. In the future we may plan to letusers create an optional "ancestry" table to make this more efficient. Once this table exists, inserts and updates will be slower as an extra object will need to be managed, but queries descenants will be improved.
 
 ### Configuring the separators
 

@@ -19,6 +19,8 @@ def create_hierarchable_test_roots_table
     include Hierarchable
     hierarchable parent_source: nil
 
+    has_many :hierarchable_test_parents
+
     with_columns do |t|
       t.string :name
       t.references :hierarchy_root,
@@ -44,6 +46,7 @@ def create_hierarchable_test_parents_table
     hierarchable parent_source: :hierarchable_test_root
 
     belongs_to :hierarchable_test_root, optional: true
+    has_many :hierarchable_test_kids
 
     with_columns do |t|
       t.integer :hierarchable_test_root_id
