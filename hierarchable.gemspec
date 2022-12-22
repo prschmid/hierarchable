@@ -1,0 +1,61 @@
+# frozen_string_literal: true
+
+lib = File.expand_path('lib', __dir__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require 'hierarchable/version'
+
+Gem::Specification.new do |spec|
+  spec.name          = 'hierarchable'
+  spec.version       = Hierarchable::VERSION
+  spec.authors       = ['Patrick R. Schmid']
+  spec.email         = ['prschmid@gmail.com']
+
+  spec.summary       = 'Cross model hierarchical (parent, child, sibling) ' \
+                       'relationship between ActiveRecord models.'
+  spec.description   = 'Cross model hierarchical (parent, child, sibling) ' \
+                       'relationship between ActiveRecord models.'
+  spec.homepage      = 'https://github.com/prschmid/hierarchable'
+  spec.license       = 'MIT'
+
+  # Prevent pushing this gem to RubyGems.org. To allow pushes either set the
+  # 'allowed_push_host' to allow pushing to a single host or delete this
+  # section to allow pushing to any host.
+  if spec.respond_to?(:metadata)
+    spec.metadata['homepage_uri'] = spec.homepage
+    spec.metadata['source_code_uri'] = 'https://github.com/prschmid/hierarchable'
+    spec.metadata['changelog_uri'] = 'https://github.com/prschmid/hierarchable'
+  else
+    raise 'RubyGems 2.0 or newer is required to protect against ' \
+          'public gem pushes.'
+  end
+
+  # Specify which files should be added to the gem when it is released.
+  # The `git ls-files -z` loads the files in the RubyGem that have been added
+  # into git.
+  spec.files = Dir.chdir(File.expand_path(__dir__)) do
+    `git ls-files -z`.split("\x0").reject do |f|
+      f.match(%r{^(test|spec|features)/})
+    end
+  end
+  spec.bindir        = 'exe'
+  spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
+  spec.require_paths = ['lib']
+
+  spec.required_ruby_version = '>= 3.1'
+
+  spec.add_development_dependency('bundler', '~> 2.3')
+  spec.add_development_dependency('bundler-audit', '>= 0')
+  spec.add_development_dependency('minitest', '~> 5.0')
+  spec.add_development_dependency('rake', '~> 12.3')
+  spec.add_development_dependency('rubocop', '>= 0')
+  spec.add_development_dependency('rubocop-minitest', '>= 0')
+  spec.add_development_dependency('rubocop-performance', '>= 0')
+  spec.add_development_dependency('rubocop-rails', '>= 0')
+  spec.add_development_dependency('rubocop-rake', '>= 0')
+  spec.add_development_dependency('ruby_audit', '>= 0')
+  spec.add_development_dependency('sqlite3', '>= 0')
+  spec.add_development_dependency('temping', '~> 4.0')
+  spec.add_runtime_dependency('activerecord', '> 4.2.0')
+  spec.add_runtime_dependency('activesupport', '> 4.2.0')
+  spec.metadata['rubygems_mfa_required'] = 'true'
+end
