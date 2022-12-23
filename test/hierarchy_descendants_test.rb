@@ -20,8 +20,7 @@ class HierarchyDescendantsTest < Minitest::Test
   end
 
   def test_should_return_all_descendants_without_self_root_of_hierarchy
-    descendants = \
-      @project.hierarchy_descendants(include_self: false)
+    descendants = @project.hierarchy_descendants(include_self: false)
 
     assert_equal \
       [DescendantsTestProject, DescendantsTestTask,
@@ -34,8 +33,7 @@ class HierarchyDescendantsTest < Minitest::Test
   end
 
   def test_should_return_all_descendants_with_self_root_of_hierarchy
-    descendants = \
-      @project.hierarchy_descendants(include_self: true)
+    descendants = @project.hierarchy_descendants(include_self: true)
 
     assert_equal \
       [DescendantsTestProject, DescendantsTestTask,
@@ -51,10 +49,8 @@ class HierarchyDescendantsTest < Minitest::Test
     descendants = \
       @project.hierarchy_descendants(include_self: true, models: :this)
 
-    assert_equal \
-      [DescendantsTestProject].map(&:to_s).sort!,
-      descendants.keys.map(&:to_s).sort!
-
+    assert_equal [DescendantsTestProject].map(&:to_s),
+                 descendants.keys.map(&:to_s)
     assert_equal [@project.id], descendants[DescendantsTestProject].map(&:id)
   end
 
@@ -64,7 +60,6 @@ class HierarchyDescendantsTest < Minitest::Test
     )
 
     assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
-
     assert_equal [@task.id], descendants[DescendantsTestTask].map(&:id)
   end
 
@@ -72,10 +67,8 @@ class HierarchyDescendantsTest < Minitest::Test
     descendants = \
       @project.hierarchy_descendants(include_self: false, models: :this)
 
-    assert_equal \
-      [DescendantsTestProject].map(&:to_s).sort!,
-      descendants.keys.map(&:to_s).sort!
-
+    assert_equal [DescendantsTestProject].map(&:to_s),
+                 descendants.keys.map(&:to_s)
     assert_empty descendants[DescendantsTestProject].map(&:id)
   end
 
@@ -84,11 +77,9 @@ class HierarchyDescendantsTest < Minitest::Test
       descendants_test_project: @project, name: 'subtask1', parent_task: @task
     )
 
-    descendants = \
-      @task.hierarchy_descendants(include_self: false)
+    descendants = @task.hierarchy_descendants(include_self: false)
 
     assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
-
     assert_equal [subtask.id], descendants[DescendantsTestTask].map(&:id)
   end
 
@@ -97,15 +88,14 @@ class HierarchyDescendantsTest < Minitest::Test
       descendants_test_project: @project, name: 'subtask1', parent_task: @task
     )
 
-    descendants = \
-      @task.hierarchy_descendants(include_self: true)
+    descendants = @task.hierarchy_descendants(include_self: true)
 
     assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
     assert_equal [@task.id, subtask.id].sort!,
                  descendants[DescendantsTestTask].map(&:id).sort!
   end
 
-  def test_should_not_return_descendants_from_other_subtrees_in
+  def test_should_not_return_descendants_from_other_subtrees
     subtask = DescendantsTestTask.create(
       descendants_test_project: @project, name: 'subtask1', parent_task: @task
     )
@@ -118,8 +108,7 @@ class HierarchyDescendantsTest < Minitest::Test
       parent_task: another_task
     )
 
-    descendants = \
-      @task.hierarchy_descendants(include_self: true)
+    descendants = @task.hierarchy_descendants(include_self: true)
 
     assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
     assert_equal [@task.id, subtask.id].sort!,
@@ -168,7 +157,7 @@ class HierarchyDescendantsTest < Minitest::Test
       belongs_to :parent_task,
                  class_name: 'DescendantsTestTask',
                  optional: true
-      has_many :children_tasks,
+      has_many :children_test_tasks,
                class_name: 'DescendantsTestTask',
                foreign_key: 'parent_task_id',
                inverse_of: :parent_task,
@@ -212,7 +201,7 @@ class HierarchyDescendantsTest < Minitest::Test
       belongs_to :parent_milestone,
                  class_name: 'DescendantsTestMilestone',
                  optional: true
-      has_many :children_milestones,
+      has_many :children_test_milestones,
                class_name: 'DescendantsTestMilestone',
                foreign_key: 'parent_milestone_id',
                inverse_of: :parent_milestone,
