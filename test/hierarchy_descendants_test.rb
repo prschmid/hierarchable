@@ -54,6 +54,14 @@ class HierarchyDescendantsTest < Minitest::Test
     assert_equal [@project.id], descendants[DescendantsTestProject].map(&:id)
   end
 
+  def test_should_compact_this_model_descendants_with_self_root_of_hierarchy
+    descendants = @project.hierarchy_descendants(
+      include_self: true, models: :this, compact: true
+    )
+
+    assert_equal [@project.id], descendants.map(&:id)
+  end
+
   def test_should_return_defined_descendants_with_self_root_of_hierarchy
     descendants = @project.hierarchy_descendants(
       include_self: true, models: [DescendantsTestTask]
@@ -61,6 +69,14 @@ class HierarchyDescendantsTest < Minitest::Test
 
     assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
     assert_equal [@task.id], descendants[DescendantsTestTask].map(&:id)
+  end
+
+  def test_should_compact_defined_descendants_with_self_root_of_hierarchy
+    descendants = @project.hierarchy_descendants(
+      include_self: true, models: [DescendantsTestTask], compact: true
+    )
+
+    assert_equal [@task.id], descendants.map(&:id)
   end
 
   def test_should_return_this_model_descendants_without_self_root_of_hierarchy

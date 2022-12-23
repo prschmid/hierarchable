@@ -268,7 +268,7 @@ module Hierarchable
     # rubocop:disable Metrics/AbcSize
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
-    def hierarchy_children(include_self: false, models: :all)
+    def hierarchy_children(include_self: false, models: :all, compact: false)
       return {} unless respond_to?(:hierarchy_parent_id)
 
       result = {}
@@ -291,6 +291,8 @@ module Hierarchable
           result[self.class] = [self]
         end
       end
+
+      _, result = result.first if result.size == 1 && compact
       result
     end
     # rubocop:enable Metrics/AbcSize
@@ -320,7 +322,8 @@ module Hierarchable
     # Comments. If you only need this one particular model's data, then
     # set `models` to `:this`. If you want to specify a specific list of models
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
-    def hierarchy_siblings(include_self: false, models: :all)
+    # rubocop:disable Metrics/CyclomaticComplexity
+    def hierarchy_siblings(include_self: false, models: :all, compact: false)
       return {} unless respond_to?(:hierarchy_parent_id)
 
       models = case models
@@ -341,8 +344,11 @@ module Hierarchable
         query = query.where.not(id:) if model == self.class && !include_self
         result[model] = query
       end
+
+      _, result = result.first if result.size == 1 && compact
       result
     end
+    # rubocop:enable Metrics/CyclomaticComplexity
 
     # Get all of the descendant models for objects that are descendants of
     # the current one.
@@ -406,7 +412,7 @@ module Hierarchable
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
-    def hierarchy_descendants(include_self: false, models: :all)
+    def hierarchy_descendants(include_self: false, models: :all, compact: false)
       return {} unless respond_to?(:hierarchy_ancestors_path)
 
       models = case models
@@ -441,6 +447,8 @@ module Hierarchable
         end
         result[model] = query
       end
+
+      _, result = result.first if result.size == 1 && compact
       result
     end
     # rubocop:enable Metrics/CyclomaticComplexity

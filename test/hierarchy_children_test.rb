@@ -50,6 +50,14 @@ class HierarchyChildrenTest < Minitest::Test
     assert_equal [@project.id], children[ChildrenTestProject].map(&:id)
   end
 
+  def test_should_compact_this_model_children_with_self_root_of_hierarchy
+    children = @project.hierarchy_children(
+      include_self: true, models: :this, compact: true
+    )
+
+    assert_equal [@project.id], children.map(&:id)
+  end
+
   def test_should_return_defined_children_with_self_root_of_hierarchy
     children = @project.hierarchy_children(
       include_self: true, models: [ChildrenTestTask]
@@ -57,6 +65,14 @@ class HierarchyChildrenTest < Minitest::Test
 
     assert_equal [ChildrenTestTask].map(&:to_s), children.keys.map(&:to_s)
     assert_equal [@task.id], children[ChildrenTestTask].map(&:id)
+  end
+
+  def test_should_compact_defined_children_with_self_root_of_hierarchy
+    children = @project.hierarchy_children(
+      include_self: true, models: [ChildrenTestTask], compact: true
+    )
+
+    assert_equal [@task.id], children.map(&:id)
   end
 
   def test_should_return_this_model_children_without_self_root_of_hierarchy
@@ -82,8 +98,7 @@ class HierarchyChildrenTest < Minitest::Test
       children_test_project: @project, name: 'subtask1', parent_task: @task
     )
 
-    descendants = \
-      @task.hierarchy_children(include_self: true)
+    descendants = @task.hierarchy_children(include_self: true)
 
     assert_equal [ChildrenTestTask].map(&:to_s), descendants.keys.map(&:to_s)
     assert_equal [@task.id, subtask.id].sort!,

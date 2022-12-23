@@ -134,6 +134,45 @@ sub_task.hierarchy_parent == task
 sub_task.hierarchy_ancestors_path == 'Project|xxxxxx/Task|yyyyyy/Task|zzzzzz'
 ```
 
+### Core functionality
+
+The core methods that are of interest are the following:
+
+```ruby
+project.hierarchy_ancestors
+project.hierarchy_parent
+project.hierarchy_siblings
+project.hierarchy_children
+project.hierarchy_descendants
+```
+
+The major distinction for what is returned is whether you are querying "up the hierarchy" or "down the hierarchy". As there is only 1 path up the hierchy to get to the root, the return values of `hierarchy_ancestors` is a list and `hierarchy_parent` is a single object. However, traversing down the list is a little more tricky as there are various models and potential paths to get all the way do to the leaves. As such, for all methods at the same level or going down the tree (`hierarchy_siblings`, `hierarchy_children`, and `hierarchy_descendants`), the return value is a hash that has the model class as the key, and either a `ActiveRecord::Relation` or a list as the value. For example, for a Project model that has tasks and milestones as descendants, the return value might be something like
+
+```
+{
+  Task: [all descendant tasks starting at the project]
+  Milestone: [all descendant milestones starting at the project]
+}
+```
+Given the architecture of this library, this is the most efficient way to return all objects with as few queries as possible.
+
+#### Limiting the objects returned
+
+All of the methods (except `hierarchy_parent`) take a `models` paramter that can be used to limit the results returned. The potential values are 
+
+* `:all` (default): Return all objects regardless of type
+* `:this`: Return only objects of the SAME time as the current object
+* An array of models of interest: Return only the objects of the type(s) that are specified (e.g. [`Project`] or [`Project`, `Task`])
+
+There are times when we only need to get the siblings/children/descendants of one type and having a hash returned is a little cumbersome. To deal with this case, you can pass `compact: true` as a parameter and it will return just single result not as a hash. For example:
+
+```
+# Returns as a hash of the form `{Task: [..all descendants..]}`
+project.hierarch_descendants(models: ['Task'])
+
+# Returns just the result: `[..all descendants..]`
+project.hierarch_descendants(models: ['Task'], compact: true)
+```
 ### Working with siblings and descendants of an object
 
 Let's continue with our `Project` and `Task` example from above and assume we have the following models:
