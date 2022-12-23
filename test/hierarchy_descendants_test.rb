@@ -105,6 +105,27 @@ class HierarchyDescendantsTest < Minitest::Test
                  descendants[DescendantsTestTask].map(&:id).sort!
   end
 
+  def test_should_not_return_descendants_from_other_subtrees_in
+    subtask = DescendantsTestTask.create(
+      descendants_test_project: @project, name: 'subtask1', parent_task: @task
+    )
+
+    another_task = DescendantsTestTask.create(
+      descendants_test_project: @project, name: 'another_task'
+    )
+    DescendantsTestTask.create(
+      descendants_test_project: @project, name: 'another_subtask1',
+      parent_task: another_task
+    )
+
+    descendants = \
+      @task.hierarchy_descendants(include_self: true)
+
+    assert_equal [DescendantsTestTask].map(&:to_s), descendants.keys.map(&:to_s)
+    assert_equal [@task.id, subtask.id].sort!,
+                 descendants[DescendantsTestTask].map(&:id).sort!
+  end
+
   private
 
   def create_descendants_test_projects_table
