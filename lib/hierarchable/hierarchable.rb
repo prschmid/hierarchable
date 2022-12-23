@@ -240,15 +240,62 @@ module Hierarchable
       end
 
       models = hierarchy_descendant_associations.map do |association|
-        self.association(association)
-            .reflection
-            .class_name
-            .safe_constantize
+        class_for_association(association)
       end
 
       models << self.class if include_self
       models.uniq
     end
+
+    # Get the children of an object.
+    #
+    # For a given object type, return all siblings as a hash such that the key
+    # is the model and the value is the list of siblings of that model.
+    #
+    # If the `models` parameter is `:all` (default), then the result
+    # will contain objects of different types. E.g. if we have a Project,
+    # Task, and a Comment, the siblings of a Task may include both Tasks and
+    # Comments. If you only need this one particular model's data, then
+    # set `models` to `:this`. If you want to specify a specific list of models
+    # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    #
+    # The `include_self` parameter can be set to decide where to start the
+    # the children search. If set to `false` (default), then it will return
+    # all models found starting with the for all children. If set to
+    # `true`, then it will include the current object's class. Note, this
+    # parameter is added here for consistency, but in the case of children,
+    # it is unlikely that `include_self` would be set to `true`
+    # rubocop:disable Metrics/AbcSize
+    # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable Metrics/PerceivedComplexity
+    def hierarchy_children(include_self: false, models: :all)
+      return {} unless respond_to?(:hierarchy_parent_id)
+
+      result = {}
+      hierarchy_descendant_associations.each do |association|
+        model = class_for_association(association)
+
+        next unless models == :all ||
+                    (models.is_a?(Array) && models.include?(model)) ||
+                    (models == :this && instance_of?(model))
+
+        result[model] = public_send(association)
+      end
+
+      if include_self
+        if result.key?(self.class)
+          result[self.class] = result[self.class].or(self.class.where(id:))
+        elsif models == :all ||
+              models == :this ||
+              (models.is_a?(Array) && models.include?(self.class))
+          result[self.class] = [self]
+        end
+      end
+      result
+    end
+    # rubocop:enable Metrics/AbcSize
+    # rubocop:enable Metrics/CyclomaticComplexity
+    # rubocop:enable Metrics/PerceivedComplexity
 
     # Get all of the sibling models
     #
@@ -265,10 +312,7 @@ module Hierarchable
       models.uniq
     end
 
-    # Get siblings of the same type for an object.
-    #
-    # For a given object type, return all siblings as a hash such that the key
-    # is the model and the value is the list of siblings of that model.
+    # Get siblings of an object.
     #
     # If the `models` parameter is `:all` (default), then the result
     # will contain objects of different types. E.g. if we have a Project,
@@ -613,6 +657,13 @@ module Hierarchable
     # Update the hierarchy_ancestors_path if the hierarchy has changed.
     def update_dirty_hierarchy_ancestors_path
       set_hierarchy_ancestors_path
+    end
+
+    def class_for_association(association)
+      self.association(association)
+          .reflection
+          .class_name
+          .safe_constantize
     end
   end
 end
