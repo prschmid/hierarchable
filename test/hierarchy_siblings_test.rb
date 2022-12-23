@@ -55,9 +55,21 @@ class HierarchySiblingsTest < Minitest::Test
     siblings = @object.hierarchy_siblings(include_self: true, models: :this)
 
     assert_equal [SiblingsTestItem].map(&:to_s), siblings.keys.map(&:to_s)
-
     assert_equal [@object.id, sib1.id, sib2.id].sort!,
                  siblings[SiblingsTestItem].map(&:id).sort!
+  end
+
+  def test_should_compact_siblings_of_same_type_with_self
+    sib1 = @hierarchy_parent.siblings_test_items.create(name: 'sib1')
+    sib2 = @hierarchy_parent.siblings_test_items.create(name: 'sib2')
+    @hierarchy_parent.siblings_test_other_items.create(name: 'other')
+
+    siblings = @object.hierarchy_siblings(
+      include_self: true, models: :this, compact: true
+    )
+
+    assert_equal [@object.id, sib1.id, sib2.id].sort!,
+                 siblings.map(&:id).sort!
   end
 
   def test_should_return_siblings_of_defined_type_with_self
@@ -80,6 +92,25 @@ class HierarchySiblingsTest < Minitest::Test
     assert_equal [SiblingsTestOtherItem].map(&:to_s),
                  other_siblings.keys.map(&:to_s)
     assert_equal [other.id], other_siblings[SiblingsTestOtherItem].map(&:id)
+  end
+
+  def test_should_compact_siblings_of_defined_type_with_self
+    sib1 = @hierarchy_parent.siblings_test_items.create(name: 'sib1')
+    sib2 = @hierarchy_parent.siblings_test_items.create(name: 'sib2')
+    other = @hierarchy_parent.siblings_test_other_items.create(name: 'other')
+
+    siblings = @object.hierarchy_siblings(
+      include_self: true, models: [SiblingsTestItem], compact: true
+    )
+
+    assert_equal [@object.id, sib1.id, sib2.id].sort!,
+                 siblings.map(&:id).sort!
+
+    other_siblings = @object.hierarchy_siblings(
+      include_self: true, models: [SiblingsTestOtherItem], compact: true
+    )
+
+    assert_equal [other.id], other_siblings.map(&:id)
   end
 
   def test_should_return_siblings_of_same_type_without_self
