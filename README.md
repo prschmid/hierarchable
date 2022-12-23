@@ -183,15 +183,25 @@ project.hierarchy_descendants(models: :this)
 task.hierarchy_siblings
 ```
 
-In order to figure out the potential descendants of an object we need to inspect the object and query all relations to to see if any of those have this object as an ancestor. In most cases these relations can be inferred correctly by getting all of the `has_many` relationships that a model has defined. However there are times when we need to manually add a child relation to be inspected. This can be done in one of two ways.
+In order to figure out the potential descendants of an object we need to inspect the object and query all relations to to see if any of those have this object as an ancestor. In many cases these relations can be inferred correctly by getting all of the `has_many` relationships that a model has defined. To be safe and not return potential duplicate associations, the only associations that are automatically detected are the ones that are the pluralized form of the model name. 
 
-The most common case is if we want to specify additional associations. This will take all of the associations that can be auto-detected and also add in the one provided.
+```ruby
+class Project
+  has_many :tasks
+  has_many :completed_tasks, -> { completed }, class_name: 'Task'
+  has_many :timestamps, class_name: 'MetricLibrary::Timestamp`
+end
+```
+
+In the `Project` model defined above, only the `:tasks` association will be used for finding descendants.
+
+However there are times when we need to manually add a child relation to be inspected. This can be done in one of two ways. The most common case is if we want to specify additional associations. This will take all of the associations that can be auto-detected and also add in the one provided.
 
 ```ruby
 class SomeObject
   include Hierarched
   hierarched parent_source: :parent,
-              additional_descendant_associations: [:some_association]
+             additional_descendant_associations: [:some_association]
 end
 ```
 
@@ -201,7 +211,7 @@ There may also be a case when we want exact control over what associations that 
 class SomeObject
   include Hierarched
   hierarched parent_source: :parent,
-              descendant_associations: [:some_association]
+             descendant_associations: [:some_association]
 end
 ```
 

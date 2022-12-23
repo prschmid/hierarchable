@@ -77,7 +77,7 @@ module Hierarchable
       self.hierarchable_config = {
         parent_source: opts.fetch(:parent_source, nil),
         additional_descendant_associations: opts.fetch(
-          :descendant_associations, []
+          :additional_descendant_associations, []
         ),
         descendant_associations: opts.fetch(:descendant_associations, nil),
         path_separator: opts.fetch(
@@ -382,10 +382,10 @@ module Hierarchable
                     hierarchy_root_id: id
                   )
                 else
-                  path = public_send(:hierarchy_ancestors_path)
+                  path = public_send(:hierarchy_full_path)
                   model.where(
                     'hierarchy_ancestors_path LIKE ?',
-                    "#{model.sanitize_sql_like(path)}_%"
+                    "#{model.sanitize_sql_like(path)}%"
                   )
                 end
         if model == self.class
@@ -421,10 +421,14 @@ module Hierarchable
     # Return all of the `has_many` association names this class class has as a
     # list of symbols.
     #
-    # The assumption is that all of the associations we care about for
-    # getting descendants can easily be obtained directly from inspecting
-    # the class. If there are some associations that need to be manually
-    # added, one simply specify them when setting up the model.
+    # In order to be safe and not return potential duplicate associations,
+    # the only associations that are automatically
+    # detected are the ones that are the pluralized form of the model name.
+    # For example, if a model as the association `has_many :tasks`, there
+    # will need to be a Task model for this association to be kept.
+    #
+    # If there are some associations that need to be manually
+    # added, one simply needs to specify them when setting up the model.
     #
     # The most common case is if we want to specify additional associations.
     # This will take all of the associations that can be auto-detected and
@@ -458,7 +462,7 @@ module Hierarchable
             .reject(&:through_reflection?)
             .map(&:name)
       associations += hierarchable_config[:additional_descendant_associations]
-      associations
+      associations.uniq
     end
 
     # Return the string representation of the current object in the format when
