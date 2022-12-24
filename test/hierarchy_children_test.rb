@@ -23,31 +23,31 @@ class HierarchyChildrenTest < Minitest::Test
     children = @project.hierarchy_children(include_self: false)
 
     assert_equal \
-      [ChildrenTestTask, ChildrenTestMilestone].map(&:to_s).sort!,
+      %w[ChildrenTestTask ChildrenTestMilestone].map(&:to_s).sort!,
       children.keys.map(&:to_s).sort!
 
-    assert_equal [@task.id], children[ChildrenTestTask].map(&:id)
-    assert_empty children[ChildrenTestMilestone].map(&:id)
+    assert_equal [@task.id], children['ChildrenTestTask'].map(&:id)
+    assert_empty children['ChildrenTestMilestone'].map(&:id)
   end
 
   def test_should_return_all_children_with_self_root_of_hierarchy
     children = @project.hierarchy_children(include_self: true)
 
     assert_equal \
-      [ChildrenTestProject, ChildrenTestTask,
-       ChildrenTestMilestone].map(&:to_s).sort!,
+      %w[ChildrenTestProject ChildrenTestTask
+         ChildrenTestMilestone].map(&:to_s).sort!,
       children.keys.map(&:to_s).sort!
 
-    assert_equal [@project.id], children[ChildrenTestProject].map(&:id)
-    assert_equal [@task.id], children[ChildrenTestTask].map(&:id)
-    assert_empty children[ChildrenTestMilestone].map(&:id)
+    assert_equal [@project.id], children['ChildrenTestProject'].map(&:id)
+    assert_equal [@task.id], children['ChildrenTestTask'].map(&:id)
+    assert_empty children['ChildrenTestMilestone'].map(&:id)
   end
 
   def test_should_return_this_model_children_with_self_root_of_hierarchy
     children = @project.hierarchy_children(include_self: true, models: :this)
 
-    assert_equal [ChildrenTestProject].map(&:to_s), children.keys.map(&:to_s)
-    assert_equal [@project.id], children[ChildrenTestProject].map(&:id)
+    assert_equal ['ChildrenTestProject'].map(&:to_s), children.keys.map(&:to_s)
+    assert_equal [@project.id], children['ChildrenTestProject'].map(&:id)
   end
 
   def test_should_compact_this_model_children_with_self_root_of_hierarchy
@@ -60,16 +60,25 @@ class HierarchyChildrenTest < Minitest::Test
 
   def test_should_return_defined_children_with_self_root_of_hierarchy
     children = @project.hierarchy_children(
+      include_self: true, models: ['ChildrenTestTask']
+    )
+
+    assert_equal ['ChildrenTestTask'].map(&:to_s), children.keys.map(&:to_s)
+    assert_equal [@task.id], children['ChildrenTestTask'].map(&:id)
+  end
+
+  def test_should_return_defined_class_children_with_self_root_of_hierarchy
+    children = @project.hierarchy_children(
       include_self: true, models: [ChildrenTestTask]
     )
 
-    assert_equal [ChildrenTestTask].map(&:to_s), children.keys.map(&:to_s)
-    assert_equal [@task.id], children[ChildrenTestTask].map(&:id)
+    assert_equal ['ChildrenTestTask'].map(&:to_s), children.keys.map(&:to_s)
+    assert_equal [@task.id], children['ChildrenTestTask'].map(&:id)
   end
 
   def test_should_compact_defined_children_with_self_root_of_hierarchy
     children = @project.hierarchy_children(
-      include_self: true, models: [ChildrenTestTask], compact: true
+      include_self: true, models: ['ChildrenTestTask'], compact: true
     )
 
     assert_equal [@task.id], children.map(&:id)
@@ -89,8 +98,8 @@ class HierarchyChildrenTest < Minitest::Test
 
     children = @task.hierarchy_children(include_self: false)
 
-    assert_equal [ChildrenTestTask].map(&:to_s), children.keys.map(&:to_s)
-    assert_equal [subtask.id], children[ChildrenTestTask].map(&:id)
+    assert_equal ['ChildrenTestTask'].map(&:to_s), children.keys.map(&:to_s)
+    assert_equal [subtask.id], children['ChildrenTestTask'].map(&:id)
   end
 
   def test_should_return_all_descendants_with_self_middle_of_hierarchy
@@ -100,9 +109,9 @@ class HierarchyChildrenTest < Minitest::Test
 
     descendants = @task.hierarchy_children(include_self: true)
 
-    assert_equal [ChildrenTestTask].map(&:to_s), descendants.keys.map(&:to_s)
+    assert_equal ['ChildrenTestTask'].map(&:to_s), descendants.keys.map(&:to_s)
     assert_equal [@task.id, subtask.id].sort!,
-                 descendants[ChildrenTestTask].map(&:id).sort!
+                 descendants['ChildrenTestTask'].map(&:id).sort!
   end
 
   def test_should_not_return_children_from_other_subtrees
@@ -120,9 +129,9 @@ class HierarchyChildrenTest < Minitest::Test
 
     children = @task.hierarchy_children(include_self: true)
 
-    assert_equal [ChildrenTestTask].map(&:to_s), children.keys.map(&:to_s)
+    assert_equal ['ChildrenTestTask'].map(&:to_s), children.keys.map(&:to_s)
     assert_equal [@task.id, subtask.id].sort!,
-                 children[ChildrenTestTask].map(&:id).sort!
+                 children['ChildrenTestTask'].map(&:id).sort!
   end
 
   private

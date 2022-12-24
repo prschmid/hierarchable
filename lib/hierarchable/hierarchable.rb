@@ -271,6 +271,14 @@ module Hierarchable
     def hierarchy_children(include_self: false, models: :all, compact: false)
       return {} unless respond_to?(:hierarchy_parent_id)
 
+      # Convert all of the models to actual classes if they are passed as
+      # stings.
+      if models.is_a?(Array)
+        models = models.map do |model|
+          model.is_a?(String) ? model.safe_constantize : model
+        end
+      end
+
       result = {}
       hierarchy_descendant_associations.each do |association|
         model = class_for_association(association)
@@ -279,19 +287,22 @@ module Hierarchable
                     (models.is_a?(Array) && models.include?(model)) ||
                     (models == :this && instance_of?(model))
 
-        result[model] = public_send(association)
+        result[model.to_s] = public_send(association)
       end
 
+      # If we want to include self, we need to do some extra work
       if include_self
-        if result.key?(self.class)
-          result[self.class] = result[self.class].or(self.class.where(id:))
+        if result.key?(self.class.to_s)
+          result[self.class.to_s] = \
+            result[self.class.to_s].or(self.class.where(id:))
         elsif models == :all ||
               models == :this ||
               (models.is_a?(Array) && models.include?(self.class))
-          result[self.class] = [self]
+          result[self.class.to_s] = [self]
         end
       end
 
+      # Compact the results if necessary# Compact the results if necessary
       _, result = result.first if result.size == 1 && compact
       result
     end
@@ -323,6 +334,7 @@ module Hierarchable
     # set `models` to `:this`. If you want to specify a specific list of models
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
     # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable Metrics/PerceivedComplexity
     def hierarchy_siblings(include_self: false, models: :all, compact: false)
       return {} unless respond_to?(:hierarchy_parent_id)
 
@@ -337,18 +349,21 @@ module Hierarchable
 
       result = {}
       models.each do |model|
+        model = model.safe_constantize if model.is_a?(String)
         query = model.where(
           hierarchy_parent_type: public_send(:hierarchy_parent_type),
           hierarchy_parent_id: public_send(:hierarchy_parent_id)
         )
         query = query.where.not(id:) if model == self.class && !include_self
-        result[model] = query
+        result[model.to_s] = query
       end
 
+      # Compact the results if necessary
       _, result = result.first if result.size == 1 && compact
       result
     end
     # rubocop:enable Metrics/CyclomaticComplexity
+    # rubocop:enable Metrics/PerceivedComplexity
 
     # Get all of the descendant models for objects that are descendants of
     # the current one.
@@ -410,6 +425,7 @@ module Hierarchable
     # Comments. If you only need this one particular model's data, then
     # set `models` to `:this`. If you want to specify a specific list of models
     # then that can be passed as a list (e.g. [MyModel1, MyModel2])
+    # rubocop:disable Metrics/AbcSize
     # rubocop:disable Metrics/CyclomaticComplexity
     # rubocop:disable Metrics/PerceivedComplexity
     def hierarchy_descendants(include_self: false, models: :all, compact: false)
@@ -426,7 +442,13 @@ module Hierarchable
 
       result = {}
       models.each do |model|
+        model = model.safe_constantize if model.is_a?(String)
         query = if hierarchy_root?
+                  # If it's the root, we need to base the query based on the
+                  # hierarchy_root attribute since the ancestor_path will be
+                  # empty for a root node. See the README for the explanation
+                  # as to why the root node has values set to nil and the
+                  # path as the empty string.
                   model.where(
                     hierarchy_root_type: self.class.name,
                     hierarchy_root_id: id
@@ -438,6 +460,9 @@ module Hierarchable
                     "#{model.sanitize_sql_like(path)}%"
                   )
                 end
+
+        # Make sure to include/exlude the current object depending on what the
+        # user wants
         if model == self.class
           query = if include_self
                     query.or(model.where(id:))
@@ -445,12 +470,14 @@ module Hierarchable
                     query.where.not(id:)
                   end
         end
-        result[model] = query
+        result[model.to_s] = query
       end
 
+      # Compact the results if necessary
       _, result = result.first if result.size == 1 && compact
       result
     end
+    # rubocop:enable Metrics/AbcSize
     # rubocop:enable Metrics/CyclomaticComplexity
     # rubocop:enable Metrics/PerceivedComplexity
 
@@ -666,12 +693,13 @@ module Hierarchable
     def update_dirty_hierarchy_ancestors_path
       set_hierarchy_ancestors_path
     end
+  end
 
-    def class_for_association(association)
-      self.association(association)
-          .reflection
-          .class_name
-          .safe_constantize
-    end
+  # Get the class that is associated with a given association
+  def class_for_association(association)
+    self.association(association)
+        .reflection
+        .class_name
+        .safe_constantize
   end
 end
