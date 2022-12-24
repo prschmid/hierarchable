@@ -24,12 +24,13 @@ class HierarchySiblingsTest < Minitest::Test
 
     siblings = @object.hierarchy_siblings(include_self: true)
 
-    assert_equal [SiblingsTestItem, SiblingsTestOtherItem].map(&:to_s).sort!,
-                 siblings.keys.map(&:to_s).sort!
+    assert_equal \
+      %w[SiblingsTestItem SiblingsTestOtherItem].map(&:to_s).sort!,
+      siblings.keys.map(&:to_s).sort!
 
     assert_equal [@object.id, sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
-    assert_equal [other.id], siblings[SiblingsTestOtherItem].map(&:id)
+                 siblings['SiblingsTestItem'].map(&:id).sort!
+    assert_equal [other.id], siblings['SiblingsTestOtherItem'].map(&:id)
   end
 
   def test_should_return_all_siblings_without_self
@@ -39,12 +40,12 @@ class HierarchySiblingsTest < Minitest::Test
 
     siblings = @object.hierarchy_siblings(include_self: false)
 
-    assert_equal [SiblingsTestItem, SiblingsTestOtherItem].map(&:to_s).sort!,
+    assert_equal %w[SiblingsTestItem SiblingsTestOtherItem].map(&:to_s).sort!,
                  siblings.keys.map(&:to_s).sort!
 
     assert_equal [sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
-    assert_equal [other.id], siblings[SiblingsTestOtherItem].map(&:id)
+                 siblings['SiblingsTestItem'].map(&:id).sort!
+    assert_equal [other.id], siblings['SiblingsTestOtherItem'].map(&:id)
   end
 
   def test_should_return_siblings_of_same_type_with_self
@@ -54,9 +55,9 @@ class HierarchySiblingsTest < Minitest::Test
 
     siblings = @object.hierarchy_siblings(include_self: true, models: :this)
 
-    assert_equal [SiblingsTestItem].map(&:to_s), siblings.keys.map(&:to_s)
+    assert_equal ['SiblingsTestItem'].map(&:to_s), siblings.keys.map(&:to_s)
     assert_equal [@object.id, sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
+                 siblings['SiblingsTestItem'].map(&:id).sort!
   end
 
   def test_should_compact_siblings_of_same_type_with_self
@@ -78,20 +79,34 @@ class HierarchySiblingsTest < Minitest::Test
     other = @hierarchy_parent.siblings_test_other_items.create(name: 'other')
 
     siblings = @object.hierarchy_siblings(
+      include_self: true, models: ['SiblingsTestItem']
+    )
+
+    assert_equal ['SiblingsTestItem'].map(&:to_s), siblings.keys.map(&:to_s)
+    assert_equal [@object.id, sib1.id, sib2.id].sort!,
+                 siblings['SiblingsTestItem'].map(&:id).sort!
+
+    other_siblings = @object.hierarchy_siblings(
+      include_self: true, models: ['SiblingsTestOtherItem']
+    )
+
+    assert_equal ['SiblingsTestOtherItem'].map(&:to_s),
+                 other_siblings.keys.map(&:to_s)
+    assert_equal [other.id], other_siblings['SiblingsTestOtherItem'].map(&:id)
+  end
+
+  def test_should_return_siblings_of_defined_type_as_class_with_self
+    sib1 = @hierarchy_parent.siblings_test_items.create(name: 'sib1')
+    sib2 = @hierarchy_parent.siblings_test_items.create(name: 'sib2')
+    @hierarchy_parent.siblings_test_other_items.create(name: 'other')
+
+    siblings = @object.hierarchy_siblings(
       include_self: true, models: [SiblingsTestItem]
     )
 
-    assert_equal [SiblingsTestItem].map(&:to_s), siblings.keys.map(&:to_s)
+    assert_equal ['SiblingsTestItem'].map(&:to_s), siblings.keys.map(&:to_s)
     assert_equal [@object.id, sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
-
-    other_siblings = @object.hierarchy_siblings(
-      include_self: true, models: [SiblingsTestOtherItem]
-    )
-
-    assert_equal [SiblingsTestOtherItem].map(&:to_s),
-                 other_siblings.keys.map(&:to_s)
-    assert_equal [other.id], other_siblings[SiblingsTestOtherItem].map(&:id)
+                 siblings['SiblingsTestItem'].map(&:id).sort!
   end
 
   def test_should_compact_siblings_of_defined_type_with_self
@@ -100,14 +115,14 @@ class HierarchySiblingsTest < Minitest::Test
     other = @hierarchy_parent.siblings_test_other_items.create(name: 'other')
 
     siblings = @object.hierarchy_siblings(
-      include_self: true, models: [SiblingsTestItem], compact: true
+      include_self: true, models: ['SiblingsTestItem'], compact: true
     )
 
     assert_equal [@object.id, sib1.id, sib2.id].sort!,
                  siblings.map(&:id).sort!
 
     other_siblings = @object.hierarchy_siblings(
-      include_self: true, models: [SiblingsTestOtherItem], compact: true
+      include_self: true, models: ['SiblingsTestOtherItem'], compact: true
     )
 
     assert_equal [other.id], other_siblings.map(&:id)
@@ -120,10 +135,10 @@ class HierarchySiblingsTest < Minitest::Test
 
     siblings = @object.hierarchy_siblings(include_self: false, models: :this)
 
-    assert_equal [SiblingsTestItem].map(&:to_s), siblings.keys.map(&:to_s)
+    assert_equal ['SiblingsTestItem'].map(&:to_s), siblings.keys.map(&:to_s)
 
     assert_equal [sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
+                 siblings['SiblingsTestItem'].map(&:id).sort!
   end
 
   def test_should_return_siblings_of_defined_type_without_self
@@ -132,20 +147,20 @@ class HierarchySiblingsTest < Minitest::Test
     other = @hierarchy_parent.siblings_test_other_items.create(name: 'other')
 
     siblings = @object.hierarchy_siblings(
-      include_self: false, models: [SiblingsTestItem]
+      include_self: false, models: ['SiblingsTestItem']
     )
 
-    assert_equal [SiblingsTestItem].map(&:to_s), siblings.keys.map(&:to_s)
+    assert_equal ['SiblingsTestItem'].map(&:to_s), siblings.keys.map(&:to_s)
     assert_equal [sib1.id, sib2.id].sort!,
-                 siblings[SiblingsTestItem].map(&:id).sort!
+                 siblings['SiblingsTestItem'].map(&:id).sort!
 
     other_siblings = @object.hierarchy_siblings(
-      include_self: false, models: [SiblingsTestOtherItem]
+      include_self: false, models: ['SiblingsTestOtherItem']
     )
 
-    assert_equal [SiblingsTestOtherItem].map(&:to_s),
+    assert_equal ['SiblingsTestOtherItem'].map(&:to_s),
                  other_siblings.keys.map(&:to_s)
-    assert_equal [other.id], other_siblings[SiblingsTestOtherItem].map(&:id)
+    assert_equal [other.id], other_siblings['SiblingsTestOtherItem'].map(&:id)
   end
 
   private

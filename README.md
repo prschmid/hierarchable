@@ -150,8 +150,8 @@ The major distinction for what is returned is whether you are querying "up the h
 
 ```
 {
-  Task: [all descendant tasks starting at the project]
-  Milestone: [all descendant milestones starting at the project]
+  'Task': [all descendant tasks starting at the project]
+  'Milestone': [all descendant milestones starting at the project]
 }
 ```
 Given the architecture of this library, this is the most efficient way to return all objects with as few queries as possible.
@@ -162,7 +162,7 @@ All of the methods (except `hierarchy_parent`) take a `models` paramter that can
 
 * `:all` (default): Return all objects regardless of type
 * `:this`: Return only objects of the SAME time as the current object
-* An array of models of interest: Return only the objects of the type(s) that are specified (e.g. [`Project`] or [`Project`, `Task`])
+* An array of models of interest: Return only the objects of the type(s) that are specified (e.g. [`Project`] or [`Project`, `Task`]). The models can be passed either as class objects or a string that can be turned into a class object via `safe_constantize`.
 
 There are times when we only need to get the siblings/children/descendants of one type and having a hash returned is a little cumbersome. To deal with this case, you can pass `compact: true` as a parameter and it will return just single result not as a hash. For example:
 
