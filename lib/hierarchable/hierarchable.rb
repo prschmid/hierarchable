@@ -396,6 +396,7 @@ module Hierarchable
       until models_to_analyze.empty?
 
         klass = models_to_analyze.pop
+        next unless klass
         next if models.include?(klass)
 
         obj = klass.new
@@ -514,7 +515,7 @@ module Hierarchable
     # also add in the one provided.
     #
     #   class A
-    #     include Hierarched
+    #     include Hierarchable
     #     hierarched parent_source: :parent,
     #                additional_descendant_associations: [:some_association]
     #   end
@@ -523,7 +524,7 @@ module Hierarchable
     # that should be used. In that case, we can specify it like this:
     #
     #   class A
-    #     include Hierarched
+    #     include Hierarchable
     #     hierarched parent_source: :parent,
     #                descendant_associations: [:some_association]
     #   end
@@ -682,11 +683,15 @@ module Hierarchable
     def hierarchy_parent_changed?
       # FIXME: We need to figure out how to deal with updating the
       # object_hierarchy_ancestry_path, object_hierarchy_full_path, etc.,
-      if hierarchy_parent_source.present?
-        public_send("#{hierarchy_parent_source}_id_changed?")
-      else
-        false
-      end
+      return true unless self.persisted?
+
+      source = hierarchy_parent_source
+      return false unless source.present?
+
+      changed_method = "#{source}_id_changed?"
+      public_send(changed_method) if respond_to?(changed_method)
+
+      return send(source).id == hierarchy_parent_id
     end
 
     # Update the hierarchy_ancestors_path if the hierarchy has changed.
@@ -699,7 +704,6 @@ module Hierarchable
   def class_for_association(association)
     self.association(association)
         .reflection
-        .class_name
-        .safe_constantize
+        .klass
   end
 end
