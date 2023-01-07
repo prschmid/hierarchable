@@ -683,15 +683,15 @@ module Hierarchable
     def hierarchy_parent_changed?
       # FIXME: We need to figure out how to deal with updating the
       # object_hierarchy_ancestry_path, object_hierarchy_full_path, etc.,
-      return true unless self.persisted?
+      return true unless persisted?
 
       source = hierarchy_parent_source
-      return false unless source.present?
+      return false if source.blank?
 
       changed_method = "#{source}_id_changed?"
       public_send(changed_method) if respond_to?(changed_method)
 
-      return send(source).id == hierarchy_parent_id
+      send(source).id == hierarchy_parent_id
     end
 
     # Update the hierarchy_ancestors_path if the hierarchy has changed.
