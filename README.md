@@ -238,7 +238,7 @@ However there are times when we need to manually add a child relation to be insp
 
 ```ruby
 class SomeObject
-  include Hierarched
+  include Hierarchable
   hierarched parent_source: :parent,
              additional_descendant_associations: [:some_association]
 end
@@ -248,7 +248,7 @@ There may also be a case when we want exact control over what associations that 
 
 ```ruby
 class SomeObject
-  include Hierarched
+  include Hierarchable
   hierarched parent_source: :parent,
              descendant_associations: [:some_association]
 end
