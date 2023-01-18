@@ -689,9 +689,9 @@ module Hierarchable
       return false if source.blank?
 
       changed_method = "#{source}_id_changed?"
-      public_send(changed_method) if respond_to?(changed_method)
+      return public_send(changed_method) if respond_to?(changed_method)
 
-      send(source).id == hierarchy_parent_id
+      send(source)&.id == hierarchy_parent_id
     end
 
     # Update the hierarchy_ancestors_path if the hierarchy has changed.
