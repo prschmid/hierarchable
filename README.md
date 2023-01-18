@@ -1,6 +1,7 @@
 # Hierarchable
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/gh/prschmid/hierarchable/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/prschmid/hierarchable/tree/main)
+[![Gem Version](https://badge.fury.io/rb/hierarchable.svg)](https://badge.fury.io/rb/hierarchable)
 
 A simple way to define cross model hierarchical (parent, child, sibling) relationships between ActiveRecord models.
 
@@ -24,14 +25,14 @@ Or install it yourself as:
 
 Once the gem is installed, you will need to make sure that your models have the correct columns.
 
-* hierarchy_root: The root node in the hierarchy hierarchy (polymorphic)
-* hierarchy_parent: The parent of the current object (polymorphic)
-* hierarchy_ancestors_path: The string representation of all ancestors of
+* `hierarchy_root`: The root node in the hierarchy hierarchy (polymorphic)
+* `hierarchy_parent`: The parent of the current object (polymorphic)
+* `hierarchy_ancestors_path`: The string representation of all ancestors of
                             the current object (string).
 
 Assuming that you are using UUIDs for your IDs, this can be done by adding the following to the model(s) for which you wish to have hierarchy information:
 
-```
+```ruby
 t.references :hierarchy_root,
              polymorphic: true,
              null: true,
@@ -59,13 +60,13 @@ We will describe the usage using a simplistic Project and Task analogy where we 
 class Project
   include Hierarchable
   hierarchable
-  # If desired, could explicitly setting the parent source to `nil`, but this is
-  # the same "under the hood"
+  # If desired, one could explicitly set the parent source to `nil` for clarity,
+  # but this is the same as omitting it.
   # hierarchable parent_source: nil
 end
 ```
 
-This will set up the `Project` as the root of the hierarchy. When a `Project` model is saved, it will not have any values for the hierarchy_root, hierarchy_parent, or hierarchy_ancestors_path. This is because for the root item as we are not guaranteed to have an ID for the object until after it is saved, and so there is no way for us to set these values in a consistent way across different use cases. This doesn't affect any of the usage of the library, it's just something to keep in mind.
+This will set up the `Project` as the root of the hierarchy. When a `Project` model is saved, it will not have any values for the hierarchy_root, hierarchy_parent, or hierarchy_ancestors_path (i.e. they are `nil`). This is because for the root item we are not guaranteed to have an ID for the object until after it is saved. Thus, there is no consistent way for us to set these values across different use cases. This doesn't affect any of the usage of the library, it's just something to keep in mind.
 
 ```ruby
 project = Project.create!
@@ -148,7 +149,7 @@ project.hierarchy_descendants
 
 The major distinction for what is returned is whether you are querying "up the hierarchy" or "down the hierarchy". As there is only 1 path up the hierchy to get to the root, the return values of `hierarchy_ancestors` is a list and `hierarchy_parent` is a single object. However, traversing down the list is a little more tricky as there are various models and potential paths to get all the way do to the leaves. As such, for all methods at the same level or going down the tree (`hierarchy_siblings`, `hierarchy_children`, and `hierarchy_descendants`), the return value is a hash that has the model class as the key, and either a `ActiveRecord::Relation` or a list as the value. For example, for a Project model that has tasks and milestones as descendants, the return value might be something like
 
-```
+```ruby
 {
   'Task': [all descendant tasks starting at the project]
   'Milestone': [all descendant milestones starting at the project]
@@ -166,7 +167,7 @@ All of the methods (except `hierarchy_parent`) take a `models` paramter that can
 
 There are times when we only need to get the siblings/children/descendants of one type and having a hash returned is a little cumbersome. To deal with this case, you can pass `compact: true` as a parameter and it will return just single result not as a hash. For example:
 
-```
+```ruby
 # Returns as a hash of the form `{Task: [..all descendants..]}`
 project.hierarch_descendants(models: ['Task'])
 
@@ -253,8 +254,6 @@ class SomeObject
              descendant_associations: [:some_association]
 end
 ```
-
-Note: For the use case that this library was designed (e.g. creating breadcrumbs) this was a limitation that was perfectly acceptible. In the future we may plan to letusers create an optional "ancestry" table to make this more efficient. Once this table exists, inserts and updates will be slower as an extra object will need to be managed, but queries descenants will be improved.
 
 ### Configuring the separators
 
