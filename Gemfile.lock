@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    hierarchable (0.3.2)
+    hierarchable (0.3.3)
       activerecord (> 4.2.0)
       activesupport (> 4.2.0)
 
