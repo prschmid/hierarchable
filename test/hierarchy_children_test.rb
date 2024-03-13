@@ -85,7 +85,7 @@ class HierarchyChildrenTest < Minitest::Test
   end
 
   def test_should_return_this_model_children_without_self_root_of_hierarchy
-    children = \
+    children =
       @project.hierarchy_children(include_self: false, models: :this)
 
     assert_empty children.keys

@@ -46,7 +46,7 @@ class HierarchyDescendantsTest < Minitest::Test
   end
 
   def test_should_return_this_model_descendants_with_self_root_of_hierarchy
-    descendants = \
+    descendants =
       @project.hierarchy_descendants(include_self: true, models: :this)
 
     assert_equal ['DescendantsTestProject'].map(&:to_s),
@@ -91,7 +91,7 @@ class HierarchyDescendantsTest < Minitest::Test
   end
 
   def test_should_return_this_model_descendants_without_self_root_of_hierarchy
-    descendants = \
+    descendants =
       @project.hierarchy_descendants(include_self: false, models: :this)
 
     assert_equal ['DescendantsTestProject'].map(&:to_s),

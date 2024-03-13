@@ -176,7 +176,7 @@ module Hierarchable
       models = hierarchy_ancestors_path.split(
         hierarchable_config[:path_separator]
       ).map do |ancestor|
-        ancestor_class, = \
+        ancestor_class, =
           ancestor.split(hierarchable_config[:record_separator])
         ancestor_class.safe_constantize
       end.uniq
@@ -293,7 +293,7 @@ module Hierarchable
       # If we want to include self, we need to do some extra work
       if include_self
         if result.key?(self.class.to_s)
-          result[self.class.to_s] = \
+          result[self.class.to_s] =
             result[self.class.to_s].or(self.class.where(id:))
         elsif models == :all ||
               models == :this ||
@@ -533,7 +533,7 @@ module Hierarchable
         return hierarchable_config[:descendant_associations]
       end
 
-      associations = \
+      associations =
         self.class
             .reflect_on_all_associations(:has_many)
             .reject do |a|
@@ -662,7 +662,7 @@ module Hierarchable
       return unless respond_to?(:hierarchy_parent)
 
       parent = hierarchy_parent
-      self.hierarchy_ancestors_path = \
+      self.hierarchy_ancestors_path =
         if parent.nil? || !parent.respond_to?(:hierarchy_ancestors_path)
           nil
         elsif parent.hierarchy_ancestors_path.blank?
