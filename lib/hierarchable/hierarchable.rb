@@ -351,8 +351,8 @@ module Hierarchable
       models.each do |model|
         model = model.safe_constantize if model.is_a?(String)
         query = model.where(
-          hierarchy_parent_type: public_send(:hierarchy_parent_type),
-          hierarchy_parent_id: public_send(:hierarchy_parent_id)
+          hierarchy_parent_type:,
+          hierarchy_parent_id:
         )
         query = query.where.not(id:) if model == self.class && !include_self
         result[model.to_s] = query
@@ -455,7 +455,7 @@ module Hierarchable
                     hierarchy_root_id: id
                   )
                 else
-                  path = public_send(:hierarchy_full_path)
+                  path = hierarchy_full_path
                   model.where(
                     'hierarchy_ancestors_path LIKE ?',
                     "#{model.sanitize_sql_like(path)}%"
