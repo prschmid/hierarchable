@@ -15,9 +15,7 @@ class HierarchyDescendantsTest < Minitest::Test
     )
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_should_return_all_descendants_without_self_root_of_hierarchy
     descendants = @project.hierarchy_descendants(include_self: false)

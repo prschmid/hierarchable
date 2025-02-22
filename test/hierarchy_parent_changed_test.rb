@@ -10,9 +10,7 @@ class HierarchyParentChangedTest < Minitest::Test
     create_hierarchable_test_kids_table
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_does_change_hierarchy_if_parent_is_changed
     root = HierarchableTestRoot.create!

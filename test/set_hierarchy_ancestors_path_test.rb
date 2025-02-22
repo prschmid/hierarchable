@@ -10,9 +10,7 @@ class SetHierarchyAncestorsPathTest < Minitest::Test
     create_hierarchable_test_kids_table
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_of_root_is_an_empty_hierarchy
     root = HierarchableTestRoot.new

@@ -10,9 +10,7 @@ class SetHierarchyRootTest < Minitest::Test
     create_hierarchable_test_kids_table
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_assigns_root_to_nil_if_object_is_root
     root = HierarchableTestRoot.new
