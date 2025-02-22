@@ -10,9 +10,7 @@ class HierarchableTest < Minitest::Test
     create_hierarchable_test_kids_table
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_that_it_has_a_version_number
     refute_nil ::Hierarchable::VERSION

@@ -13,9 +13,7 @@ class HierarchySiblingsTest < Minitest::Test
     @object = @hierarchy_parent.siblings_test_items.create(name: 'obj')
   end
 
-  def teardown
-    Temping.teardown
-  end
+  delegate :teardown, to: :Temping
 
   def test_should_return_all_siblings_with_self
     sib1 = @hierarchy_parent.siblings_test_items.create(name: 'sib1')
