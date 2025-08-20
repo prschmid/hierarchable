@@ -17,6 +17,7 @@ ActiveRecord::Base.establish_connection(
 def create_hierarchable_test_roots_table
   Temping.create :hierarchable_test_roots do
     include Hierarchable
+
     hierarchable parent_source: nil
 
     has_many :hierarchable_test_parents
@@ -43,6 +44,7 @@ end
 def create_hierarchable_test_parents_table
   Temping.create :hierarchable_test_parents do
     include Hierarchable
+
     hierarchable parent_source: :hierarchable_test_root
 
     belongs_to :hierarchable_test_root, optional: true
@@ -71,6 +73,7 @@ end
 def create_hierarchable_test_kids_table
   Temping.create :hierarchable_test_kids do
     include Hierarchable
+
     hierarchable parent_source: :hierarchable_test_parent
 
     belongs_to :hierarchable_test_parent, optional: true

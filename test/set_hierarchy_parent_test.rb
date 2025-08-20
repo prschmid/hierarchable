@@ -109,6 +109,7 @@ class SetHierarchyParentTest < Minitest::Test
   def create_hierarchable_test_parents_using_anonymous_function_table
     Temping.create :hierarchable_test_anon_func_parents do
       include Hierarchable
+
       hierarchable parent_source: ->(_obj) { :hierarchable_test_root }
 
       belongs_to :hierarchable_test_root, optional: true
