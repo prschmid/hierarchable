@@ -166,6 +166,7 @@ class HierarchySiblingsTest < Minitest::Test
   def create_siblings_test_hierarchy_parents_table
     Temping.create :siblings_test_hierarchy_parents do
       include Hierarchable
+
       hierarchable
 
       has_many :siblings_test_items
@@ -195,6 +196,7 @@ class HierarchySiblingsTest < Minitest::Test
   def create_siblings_test_items_table
     Temping.create :siblings_test_items do
       include Hierarchable
+
       hierarchable parent_source: :siblings_test_hierarchy_parent
 
       belongs_to :siblings_test_hierarchy_parent
@@ -224,6 +226,7 @@ class HierarchySiblingsTest < Minitest::Test
   def create_siblings_test_other_items_table
     Temping.create :siblings_test_other_items do
       include Hierarchable
+
       hierarchable parent_source: :siblings_test_hierarchy_parent
 
       belongs_to :siblings_test_hierarchy_parent

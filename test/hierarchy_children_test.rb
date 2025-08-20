@@ -137,6 +137,7 @@ class HierarchyChildrenTest < Minitest::Test
   def create_children_test_projects_table
     Temping.create :children_test_projects do
       include Hierarchable
+
       hierarchable
 
       has_many :children_test_tasks
@@ -166,6 +167,7 @@ class HierarchyChildrenTest < Minitest::Test
   def create_children_test_tasks_table
     Temping.create :children_test_tasks do
       include Hierarchable
+
       hierarchable parent_source: lambda { |obj|
         obj.parent_task.nil? ? :children_test_project : :parent_task
       }
@@ -206,6 +208,7 @@ class HierarchyChildrenTest < Minitest::Test
   def create_children_test_milestones_table
     Temping.create :children_test_milestones do
       include Hierarchable
+
       hierarchable parent_source: lambda { |obj|
         if obj.parent_milestone.nil?
           :children_test_project
