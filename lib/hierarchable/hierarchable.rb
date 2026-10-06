@@ -607,12 +607,12 @@ module Hierarchable
       path = []
       hierarchy_full_path.split(hierarchable_config[:path_separator])
                          .each do |record|
-                           ancestor_class_name, ancestor_id = record.split(
-                             hierarchable_config[:record_separator]
-                           )
-                           ancestor_class = ancestor_class_name.safe_constantize
-                           path << ancestor_class
-                           path << ancestor_class.find(ancestor_id)
+        ancestor_class_name, ancestor_id = record.split(
+          hierarchable_config[:record_separator]
+        )
+        ancestor_class = ancestor_class_name.safe_constantize
+        path << ancestor_class
+        path << ancestor_class.find(ancestor_id)
       end
       path
     end
